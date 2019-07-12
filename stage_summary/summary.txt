@@ -1,8 +1,0 @@
-__Stage 3__:
-
-## Machine starts executing instructions from memory location 0
-
-## 0 :: LOADI 1, 0	// Load block 0 of disk to page 1 of memory
-
-   2 :: JMP 512		// Jump to page 1 - starts executing instructions that 
-			// was written in disk block 0 (boot block)
