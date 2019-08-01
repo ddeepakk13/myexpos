@@ -1,10 +1,33 @@
-// MOD 7
+// MOD 7 - Boot Module
 loadi(54, 67);
 loadi(55, 68);
+
+// MOD 5 - Sheduler
+loadi(50,63);
+loadi(51,64);
 
 // Idle
 loadi(69,11);
 loadi(70,12);
+
+//-------- Initialize Process state --------//
+[PROCESS_TABLE + 0*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 1*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 2*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 3*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 4*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 5*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 6*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 7*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 8*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 9*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 10*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 11*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 12*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 13*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 14*16 + 4] = TERMINATED;
+[PROCESS_TABLE + 15*16 + 4] = TERMINATED;
+//------------------------------------------//
 
 SP = 81*512 - 1;    // Idle stack is used while calling boot module
 

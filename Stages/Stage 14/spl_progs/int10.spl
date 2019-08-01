@@ -1,0 +1,17 @@
+[PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 4] = TERMINATED;
+
+alias iter R0;
+
+iter = 1;
+
+alias state R1;
+
+while (iter < MAX_PROC_NUM) do
+    state = [PROCESS_TABLE + 16*iter + 4];
+    if (state != TERMINATED) then
+        call SCHEDULER;
+    endif;
+    iter = iter + 1;
+endwhile;
+
+halt;

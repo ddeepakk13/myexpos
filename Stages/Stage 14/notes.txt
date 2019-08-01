@@ -1,0 +1,5 @@
+-> load even.xsm as an executable to disk through xfs-interface
+load --exec ../Stages/Stage\ 14/spl_progs/even.xsm
+and the code assumes the file resides at disk 69
+-> load prime.xsm as an executable to disk through xfs-interface
+and the code assumes the file resides at disk 70
