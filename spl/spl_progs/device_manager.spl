@@ -1,0 +1,40 @@
+//*** Handles Terminal I/O and Disk operations (Load and Store) ***//
+
+//___________________*** Functions ***_______________________//
+// 1 : DISK_STORE     : PID, Page Number, Block Number : NIL
+// 2 : DISK_LOAD      : PID, Page Number, Block Number : NIL
+// 3 : TERMINAL_WRITE : PID, Word	                   : NIL
+// 4 : TERMINAL_READ  : PID, Address	               : NIL
+//___________________________________________________________//
+
+//_______ SPL Variables ______//
+alias functionNum R1;
+alias currentPID R2;
+alias word R3;
+//____________________________//
+
+if (functionNum == TERMINAL_WRITE) then
+
+    // Aquire terminal //
+    multipush(R1, R2, R3);
+    R1 = ACQUIRE_TERMINAL;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+
+    call RESOURCE_MANAGER;
+
+    multipop(R1, R2, R3);
+    
+    // Programme flow assures printing only happens after acquiring terminal
+    print word;
+
+    // Release terminal //
+    multipush(R1, R2, R3);
+    R1 = RELEASE_TERMINAL;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+
+    call RESOURCE_MANAGER;
+
+    multipop(R1, R2, R3);
+endif;
+
+return;

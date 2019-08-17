@@ -10,6 +10,17 @@ loadi(23, 36);
 loadi(16,29);
 loadi(17,30);
 
+// MOD 0 - Resource Manager
+loadi(40,53);
+loadi(41,54);
+
+// MOD 4 - Device Manager
+loadi(48,61);
+loadi(49,62);
+
+// Initialize terminal to be free
+[TERMINAL_STATUS_TABLE + 0] = 0;
+
 // Exception handler
 loadi(2, 15);
 loadi(3, 16);

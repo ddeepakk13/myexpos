@@ -42,10 +42,6 @@ while(counter <= 16) do
         break;
     endif;
 
-    //  //
-    breakpoint;
-    //  //
-
     counter = counter + 1;
 
 endwhile;
