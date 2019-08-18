@@ -1,6 +1,7 @@
-//*** Write system call ***//
+//___________________________________________________***_INT_7_Write_system_call_***___________________________________________________//
 
 // Arguments: File Descriptor(Integer) and the word to be written //
+
 
 //__________*** Return Value ***__________//
 //  0 : Success 
@@ -50,10 +51,11 @@ else
     [physicalAddrRetVal] = 0;
 endif;
 
-// Switch to user stack //
+// Switch back to user stack //
 SP = userSP;
 
 // Reset mode flag //
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
 
+// Return to user program
 ireturn;

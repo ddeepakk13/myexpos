@@ -1,0 +1,84 @@
+//*** Handles Terminal I/O and Disk operations (Load and Store) ***//
+
+//___________________*** Functions ***_______________________//
+// 1 : DISK_STORE     : PID, Page Number, Block Number : NIL
+// 2 : DISK_LOAD      : PID, Page Number, Block Number : NIL
+// 3 : TERMINAL_WRITE : PID, Word	                   : NIL
+// 4 : TERMINAL_READ  : PID, Address	               : NIL
+//___________________________________________________________//
+
+//_______ SPL Variables ______//
+alias functionNum R1;
+alias currentPID R2;
+alias word R3;
+//____________________________//
+
+if (functionNum == TERMINAL_WRITE) then
+
+    // Prepare to call Aquire terminal
+    multipush(R1, R2, R3, R4);
+    R1 = ACQUIRE_TERMINAL;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+
+    call RESOURCE_MANAGER;
+
+    multipop(R1, R2, R3, R4);
+    
+    // Programme flow assures printing only happens after acquiring terminal
+    //  //  //
+    breakpoint;
+    //  //  //
+    print word;
+
+    // Release terminal
+    multipush(R1, R2, R3, R4);
+    R1 = RELEASE_TERMINAL;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+
+    call RESOURCE_MANAGER;
+
+    multipop(R1, R2, R3, R4);
+endif;
+
+if (functionNum == TERMINAL_READ) then
+
+    // Prepare to call Aquire terminal
+    multipush(R1, R2, R3, R4);
+    R1 = ACQUIRE_TERMINAL;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+
+    call RESOURCE_MANAGER;
+
+    multipop(R1, R2, R3, R4);
+    
+    // Programme flow assures read only happens after acquiring terminal
+    read;
+
+    // Unlike 'print' statement 'read' takes time to process.
+    // So, we schedule some other process in the meantime.
+    // Scheduler returns control to the program only after console interrupt handler 
+    // has read console i/p and stored it to i/p buffer of the process.
+    [PROCESS_TABLE + ( currentPID * 16) + 4] = WAIT_TERMINAL;
+
+    multipush(R1, R2, R3, R4);
+
+    call SCHEDULER;
+
+    multipop(R1, R2, R3, R4);
+
+    // Upon return from scheduler we know that console interrupt handler has
+    // copied the data read from terminal to i/p buffer.
+    // It's the device manager's job to copy that data from i/p buffer 
+    // to address provided by the user program
+
+
+    // Convert logical address in R3 to physical address
+    R3 = [PTBR + (R3/512)*2] * 512 + (R3 % 512);
+
+    // Copy data in i/p buffer to address
+    [R3] = [PROCESS_TABLE + 16*currentPID + 8];
+
+
+endif;
+
+return;

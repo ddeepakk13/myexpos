@@ -1,0 +1,58 @@
+//______________________________________***_INT_6_Read_system_call_***__________________________________// 
+
+// Arguments: File Descriptor(Integer) and a Buffer (a String/Integer variable) into which a word is to be read from the file
+
+//__________*** Return Value ***__________//
+//  0 : Success 
+// -1 : File Descriptor given is invalid
+// -2 : File pointer has reached end of file
+//________________________________________//
+
+//_______ SPL Variables ______//
+alias userSP R0;
+alias fileDescriptor R1;
+alias physicalAddrRetVal R2;
+alias address R3;
+//____________________________//
+
+// Set mode flag //
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 7;
+
+// Store SP to a register //
+userSP = SP;
+
+// Save user SP to process table //
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13] = userSP;
+
+// Switch to kernel stack //
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 11] * 512 - 1;
+
+// Extract file descriptor //
+fileDescriptor = [([PTBR + 2 * ((userSP - 4) / 512)] * 512)  + ((userSP - 4) % 512)];
+
+// If file descriptor is invalid //
+if (fileDescriptor != -1) then
+	physicalAddrRetVal = ([PTBR + 2 * ((userSP - 1) / 512)] * 512) + ((userSP - 1) % 512);
+	[physicalAddrRetVal] = -1;
+else
+    address = [[PTBR + 2 * ((userSP - 3) / 512)] * 512 + ((userSP - 3) % 512)];
+    multipush(R0,R1,R2,R3);
+    R1 = TERMINAL_READ;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = address;
+
+    call DEVICE_MANAGER;
+
+    multipop(R0,R1,R2,R3);
+    physicalAddrRetVal = ([PTBR + 2 * (userSP - 1)/ 512] * 512) + ((userSP - 1) % 512);
+    [physicalAddrRetVal] = 0;
+endif;
+
+// Switch back to user stack //
+SP = userSP;
+
+// Reset mode flag //
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+
+// Return to user program
+ireturn;

@@ -48,6 +48,7 @@ endwhile;
 
 // If no process found viable, schedule Idle 
 if (counter == 17) then
+    new_process_table = PROCESS_TABLE;
     newPID = 0;
 endif;
 //<----------------------------------------------------------------------->//
