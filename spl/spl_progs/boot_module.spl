@@ -10,6 +10,10 @@ loadi(15,28);
 loadi(16,29);
 loadi(17,30);
 
+// INT 9 - Exec
+loadi(20,33);
+loadi(21,34);
+
 // INT 10
 loadi(22, 35);
 loadi(23, 36);
@@ -18,12 +22,17 @@ loadi(23, 36);
 loadi(40,53);
 loadi(41,54);
 
+// MOD 1 - Process Manager
+loadi(42,55);
+loadi(43,56);
+
+// MOD 2 - Memory Manager
+loadi(44,57);
+loadi(45,58);
+
 // MOD 4 - Device Manager
 loadi(48,61);
 loadi(49,62);
-
-// Initialize terminal to be free
-[TERMINAL_STATUS_TABLE + 0] = 0;
 
 // Exception handler
 loadi(2, 15);
@@ -41,7 +50,32 @@ loadi(5, 18);
 loadi(8, 21);
 loadi(9, 22);
 
+// Inode Table
+loadi (59, 3);
+loadi (60, 4);
 
+
+// Initialize MEMORY_FREE_LIST
+alias iter R1;
+iter = 0;
+
+while (iter < NUM_MEM_PAGES) do
+    if (iter >= 83 && iter <= 127) then
+        [MEMORY_FREE_LIST + iter] = 0;
+    else
+        [MEMORY_FREE_LIST + iter] = 1;
+    endif;
+    iter = iter + 1;
+endwhile;
+
+// Initialize WAIT_MEM to 0
+[SYSTEM_STATUS_TABLE + 3] = 0;
+
+// initialize MEM_FREE_COUNT to 127-83+1
+[SYSTEM_STATUS_TABLE + 2] = 45;
+
+// Initialize terminal to be free
+[TERMINAL_STATUS_TABLE + 0] = 0;
 
 //<-------------------------------- Init --------------------------------------->//
 

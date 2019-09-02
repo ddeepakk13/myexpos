@@ -1,3 +1,4 @@
+
 // Save BP for good measure as applications programs don't do it before calling scheduler
 multipush(BP);
 
@@ -25,6 +26,7 @@ alias state R5;
 // Note: Total size alloted for process table is 256 words
 // This could be implemented in a other ways also; here I'm using mod 256 addition
 
+
 while(counter <= 16) do
 
     new_process_table = PROCESS_TABLE + (process_table_entry + 16*counter) % 256;
@@ -46,11 +48,16 @@ while(counter <= 16) do
 
 endwhile;
 
+
+
+
 // If no process found viable, schedule Idle 
 if (counter == 17) then
     new_process_table = PROCESS_TABLE;
     newPID = 0;
 endif;
+
+
 //<----------------------------------------------------------------------->//
 
 
@@ -76,6 +83,7 @@ if ([new_process_table + 4] == CREATED) then
     SP = [new_process_table + 13];
     [new_process_table + 4] = RUNNING;
     [new_process_table + 9] = 0;            // Initialize the new process' mode flag
+
     ireturn;
 endif;
 //<-------------------------------------------------------------->//
@@ -87,6 +95,7 @@ endif;
 
 [new_process_table + 4] = RUNNING;
 multipop(BP);
+
 
 return;
 //<------------------------------------------------------------------------------------------------->//

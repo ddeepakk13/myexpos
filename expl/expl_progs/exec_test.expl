@@ -1,0 +1,12 @@
+decl 
+   int n; 
+enddecl
+
+int main()
+{
+  begin
+  n = exposcall("Exec","prime.xsm");
+  write(n);
+  return 0;
+  end
+}

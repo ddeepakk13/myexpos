@@ -1,0 +1,82 @@
+// MODULE 2
+//*** This module handles allocation and deallocation of memory pages ***//
+
+//___________________*** Functions ***_______________________//
+// 1 : GET_FREE_PAGE    : NIL               : Free page number
+// 2 : RELEASE_PAGE     : Page number       : NIL
+// 3 : GET_FREE_BLOCK   : NIL               : Free block number or -1
+// 4 : RELEASE_BLOCK    : Block number, PID : NIL
+// 5 : GET_CODE_PAGE    : Block number      : Page number
+// 6 : GET_SWAP_BLOCK   : NIL               : Block number
+//___________________________________________________________//
+
+//_______ SPL Variables ______//
+alias function_num R1;
+alias curr_PID R3;
+alias iter R4;
+alias page_number R5;
+//____________________________//
+
+
+curr_PID = [SYSTEM_STATUS_TABLE + 1];
+
+if (function_num == GET_FREE_PAGE) then
+    // Increment WAIT_MEM_COUNT
+    [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;
+
+    // If no memory is available schedule another process
+    while ([SYSTEM_STATUS_TABLE + 2] == 0) do
+
+        // set state as waiting for memory
+        [PROCESS_TABLE + 16*curr_PID + 4] = WAIT_MEM;
+        multipush(R1,R3,R4);
+        call SCHEDULER;
+        multipop(R1,R3,R4);
+
+    endwhile;
+
+    // Decrement WAIT_MEM_COUNT as there is atleast one free memory block available
+    [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] - 1;
+    // Decrement MEM_FREE_COUNT
+    [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;  
+
+    // Select a free page from memory by inspecting MEMORY_FREE_LIST
+    iter = 83;
+
+    // User memory pages are designated from 83 to 127 (see memory_map.txt)
+    while (iter <= 127) do
+
+        // If iter corresponds to a free page
+        if ([MEMORY_FREE_LIST+iter] == 0) then
+            [MEMORY_FREE_LIST+iter] = 1;
+            R0 = iter;
+            return;
+        endif;
+        iter = iter + 1;
+    endwhile;
+    
+endif;
+
+if (function_num == RELEASE_PAGE) then
+
+    // Page to be released is in R2
+    page_number = R2;
+
+    // Decrement MEMORY_FREE_LIST entry
+    [MEMORY_FREE_LIST + page_number] = [MEMORY_FREE_LIST + page_number]-1;
+
+    // If the memory page becomes totally free Increment MEM_FREE_COUNT
+    if ([MEMORY_FREE_LIST + page_number] == 0) then
+        [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
+
+        // check if any processes are in WAIT_MEM state and change them to ready
+        iter = 0;
+        while (iter < MAX_PROC_NUM) do
+            if ([PROCESS_TABLE + 16*iter + 4] == WAIT_MEM) then
+                [PROCESS_TABLE + 16*iter + 4] = READY;
+            endif;
+            iter = iter+1;
+        endwhile;
+    endif;
+    return;
+endif;

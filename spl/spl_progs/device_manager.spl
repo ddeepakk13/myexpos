@@ -13,6 +13,8 @@ alias currentPID R2;
 alias word R3;
 //____________________________//
 
+
+
 if (functionNum == TERMINAL_WRITE) then
 
     // Prepare to call Aquire terminal
@@ -22,12 +24,10 @@ if (functionNum == TERMINAL_WRITE) then
 
     call RESOURCE_MANAGER;
 
+
     multipop(R1, R2, R3, R4);
-    
+
     // Programme flow assures printing only happens after acquiring terminal
-    //  //  //
-    breakpoint;
-    //  //  //
     print word;
 
     // Release terminal
@@ -38,6 +38,8 @@ if (functionNum == TERMINAL_WRITE) then
     call RESOURCE_MANAGER;
 
     multipop(R1, R2, R3, R4);
+
+    
 endif;
 
 if (functionNum == TERMINAL_READ) then
