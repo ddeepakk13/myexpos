@@ -10,7 +10,7 @@
 //_______ SPL Variables ______//
 alias userSP R0;
 alias fileName R1;
-alias iter R2;
+alias iter R6;
 alias temp R3;
 alias inode_index R4;
 alias codeSize R5;
@@ -63,13 +63,13 @@ if (iter == MAX_FILE_NUM) then
 endif;
 
 // If all is well call exit process function in process manager module
-multipush(R0,R1,R2,R3,R4);
+multipush(R0,R1,R2,R3,R4,R6);
 
 R1 = EXIT_PROCESS;
 R2 = [SYSTEM_STATUS_TABLE + 1];
 call PROCESS_MANAGER;
 
-multipop(R0,R1,R2,R3,R4);
+multipop(R0,R1,R2,R3,R4,R6);
 
 
 // Reclaim user area page
@@ -104,7 +104,7 @@ PTLR = 10;
 
 // Invoke the Get Free Page function to allocate 2 stack and 2 heap pages.
 
-multipush(R0,R1,R2,R3,R4);
+multipush(R0,R1,R2,R3,R4,R6);
 
 // Heap
 R1 = GET_FREE_PAGE;
@@ -128,7 +128,7 @@ call MEMORY_MANAGER;
 [PTBR+18] = R0;
 [PTBR+19] = "0110";
 
-multipop(R0,R1,R2,R3,R4);
+multipop(R0,R1,R2,R3,R4,R6);
 
 // Find out the number of blocks occupied by the file from inode table
 codeSize = ([INODE_TABLE + 16 * inode_index + 2] + 511) / 512;
@@ -138,12 +138,12 @@ codeSize = ([INODE_TABLE + 16 * inode_index + 2] + 511) / 512;
 iter = 0;
 while(iter < codeSize) do
     //Code
-    multipush(R0,R1,R2,R3,R4,R5);
+    multipush(R0,R1,R2,R3,R4,R5,R6);
     R1 = GET_FREE_PAGE;
     call MEMORY_MANAGER;
     [PTBR + 8 + iter * 2] = R0;
     [PTBR + 8 + iter*2 + 1] = "0100";
-    multipop(R0,R1,R2,R3,R4,R5);
+    multipop(R0,R1,R2,R3,R4,R5,R6);
     iter = iter + 1;
 endwhile;
 
@@ -156,7 +156,25 @@ endwhile;
 // Load the code blocks from the disk to the memory pages using loadi statement.
 iter = 0;
 while (iter < codeSize) do
-    loadi([PTBR + 8 + iter * 2], [INODE_TABLE + 16 * inode_index + 8 + iter]);
+    multipush(R0,R1,R2,R3,R4,R5,R6);
+    R1 = DISK_LOAD;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = [PTBR + 8 + iter * 2];
+    R4 = [INODE_TABLE + 16 * inode_index + 8 + iter];
+    //  //  //  //  //  //
+    call DEVICE_MANAGER;
+    //  //  //  //  //  //
+    multipop(R0,R1,R2,R3,R4,R5,R6);
+    iter = iter + 1;
+endwhile;
+
+// per-process resource table should be initialized in this user area page. Since the 
+// newly created process has not opened any files or semaphores, each entry in the 
+// per-process table is initialized to -1.
+R9 = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 11];
+iter = R9 * 512 + 512 - 16;
+while (iter < (R9 * 512 + 512)) do
+    [iter] = -1;
     iter = iter + 1;
 endwhile;
 

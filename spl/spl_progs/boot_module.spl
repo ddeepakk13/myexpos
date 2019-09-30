@@ -46,6 +46,10 @@ loadi(64,14);
 loadi(4, 17);
 loadi(5, 18);
 
+// Disk interrupt
+loadi(6, 19);
+loadi(7, 20);
+
 // Console interrupt
 loadi(8, 21);
 loadi(9, 22);
@@ -53,6 +57,9 @@ loadi(9, 22);
 // Inode Table
 loadi (59, 3);
 loadi (60, 4);
+
+// Initialize DISK_STATUS_TABLE
+[DISK_STATUS_TABLE + 0] = 0;
 
 
 // Initialize MEMORY_FREE_LIST
@@ -128,6 +135,14 @@ PTLR = 10;
 // PTLR
 [PROCESS_TABLE + 16 + 15] = PTLR;
 //<----------------------------------------->//
+
+// Initialize per-process resource table for init
+R9 = [PROCESS_TABLE + 1 * 16 + 11];
+iter = R9 * 512 + 512 - 16;
+while (iter < (R9 * 512 + 512)) do
+    [iter] = -1;
+    iter = iter + 1;
+endwhile;
 
 // Copy entry point to top of stack
 [76 * 512] = [65 * 512 + 1];

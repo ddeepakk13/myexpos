@@ -14,10 +14,27 @@
 
 //_______ SPL Variables ______//
 alias functionNum R1;
-alias currentPID R2;
-alias iter R3;
+alias arg1 R2;
+alias arg2 R3;
 alias process_table R4;
+alias iter R5;
 //____________________________//
+
+if (functionNum == ACQUIRE_DISK) then
+    // PID -> arg1
+    // While disk is busy wait in loop
+    while ([DISK_STATUS_TABLE + 0] == 1) do
+        [PROCESS_TABLE + arg1 * 16 + 4] = WAIT_DISK;
+        multipush(R1,R2,R3,R4,R5);
+        //  //  //  //  //
+        call SCHEDULER;
+        //  //  //  //  //
+        multipop(R1,R2,R3,R4,R5);
+    endwhile;
+
+    [DISK_STATUS_TABLE + 0] = 1;
+    [DISK_STATUS_TABLE + 4] = arg1;
+endif;
 
 if (functionNum == ACQUIRE_TERMINAL) then
 
@@ -25,7 +42,7 @@ if (functionNum == ACQUIRE_TERMINAL) then
     while ([TERMINAL_STATUS_TABLE + 0] == 1) do
 
         // Set status of current proceess as waiting for terminal
-        [PROCESS_TABLE + currentPID * 16 + 4] = WAIT_TERMINAL;
+        [PROCESS_TABLE + arg1 * 16 + 4] = WAIT_TERMINAL;
         multipush(R1,R2,R3,R4);
 
         // Schedule another process as this process is waiting for terminal
@@ -36,13 +53,13 @@ if (functionNum == ACQUIRE_TERMINAL) then
 
     // Set Terminal status as in use by current process
     [TERMINAL_STATUS_TABLE + 0] = 1;
-    [TERMINAL_STATUS_TABLE + 1] = currentPID;
+    [TERMINAL_STATUS_TABLE + 1] = arg1;
 
 
 endif;
 
 if (functionNum == RELEASE_TERMINAL) then
-    if (currentPID != [TERMINAL_STATUS_TABLE + 1]) then
+    if (arg1 != [TERMINAL_STATUS_TABLE + 1]) then
         R0 = -1;
         return;
     endif;

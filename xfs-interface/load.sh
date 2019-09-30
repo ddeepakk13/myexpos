@@ -2,6 +2,7 @@ load --os ../spl/spl_progs/os_startup.xsm
 load --init ../expl/expl_progs/program_prompt.xsm
 load --idle ../expl/expl_progs/idle.xsm
 load --int=timer ../spl/spl_progs/timer.xsm
+load --int=disk ../spl/spl_progs/disk.xsm
 load --int=console ../spl/spl_progs/console.xsm
 load --int=6 ../spl/spl_progs/int6.xsm
 load --int=7 ../spl/spl_progs/int7.xsm
