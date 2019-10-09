@@ -1,0 +1,84 @@
+// *** Module responsible for allocating and releasing resources *** //
+
+//_____________________________ ***Functions*** __________________________________//
+// 1 : ACQUIRE_BUFFER    : Buffer Number, PID         : NIL
+// 2 : RELEASE_BUFFER    : Buffer Number, PID         : 0 or -1
+// 3 : ACQUIRE_DISK      : PID                        : NIL
+// 4 : ACQUIRE_INODE     : Inodeindex, PID            : 0 or -1
+// 5 : RELEASE_INODE     : Inodeindex, PID            : 0 or -1
+// 6 : ACQUIRE_SEMAPHORE : PID                        : Semaphore Table Index or -1
+// 7 : RELEASE_SEMAPHORE : Semaphore Table Index, PID : 0 or -1
+// 8 : ACQUIRE_TERMINAL  : PID                        : NIL
+// 9 : RELEASE_TERMINAL  : PID                        : 0 or -1
+//_______________________________________________________________________________//
+
+//_______ SPL Variables ______//
+alias functionNum R1;
+alias arg1 R2;
+alias arg2 R3;
+alias process_table R4;
+alias iter R5;
+//____________________________//
+
+if (functionNum == ACQUIRE_DISK) then
+    // PID -> arg1
+    // While disk is busy wait in loop
+    while ([DISK_STATUS_TABLE + 0] == 1) do
+        [PROCESS_TABLE + arg1 * 16 + 4] = WAIT_DISK;
+        multipush(R1,R2,R3,R4,R5);
+        //  //  //  //  //
+        call SCHEDULER;
+        //  //  //  //  //
+        multipop(R1,R2,R3,R4,R5);
+    endwhile;
+
+    [DISK_STATUS_TABLE + 0] = 1;
+    [DISK_STATUS_TABLE + 4] = arg1;
+endif;
+
+if (functionNum == ACQUIRE_TERMINAL) then
+
+    // Wait in loop until terminal is free
+    while ([TERMINAL_STATUS_TABLE + 0] == 1) do
+
+        // Set status of current proceess as waiting for terminal
+        [PROCESS_TABLE + arg1 * 16 + 4] = WAIT_TERMINAL;
+        multipush(R1,R2,R3,R4);
+
+        // Schedule another process as this process is waiting for terminal
+        call SCHEDULER;
+
+        multipop(R1,R2,R3,R4);
+    endwhile;
+
+    // Set Terminal status as in use by current process
+    [TERMINAL_STATUS_TABLE + 0] = 1;
+    [TERMINAL_STATUS_TABLE + 1] = arg1;
+
+
+endif;
+
+if (functionNum == RELEASE_TERMINAL) then
+    if (arg1 != [TERMINAL_STATUS_TABLE + 1]) then
+        R0 = -1;
+        return;
+    endif;
+
+    // Free Terminal
+    [TERMINAL_STATUS_TABLE + 0] = 0;
+
+    iter = 1;
+
+    // Set status of all processes that were waiting for terminal as ready
+    while (iter < 16) do
+        process_table = PROCESS_TABLE + 16*iter;
+        if ([process_table + 4] == WAIT_TERMINAL) then
+            [process_table + 4] = READY;
+        endif;
+        iter = iter + 1;
+    endwhile;
+
+    R0 = 0;
+endif;
+
+return;

@@ -1,0 +1,116 @@
+//*** MOD 1 - This module contains functions that manage the different aspects related to processes ***//
+
+//___________________*** Functions ***_______________________//
+// 1 : GET_PCB_ENTRY        : NIL : Index of free PCB
+// 2 : FREE_USER_AREA_PAGE  : PID : NIL
+// 3 : EXIT_PROCESS         : PID : NIL
+// 4 : FREE_PAGE_TABLE      : PID : NIL
+// 5 : KILL_ALL             : PID : NIL
+//___________________________________________________________//
+
+//_______ SPL Variables ______//
+alias function_num R1;
+alias PID R2;
+alias user_page R3;
+alias iter R4;
+//____________________________//
+
+
+
+
+if (function_num == FREE_USER_AREA_PAGE) then
+
+    user_page = [PROCESS_TABLE + 16*PID + 11];
+
+    multipush(R1,R2,R3);
+
+    R1 = RELEASE_PAGE;
+    R2 = user_page;
+    call MEMORY_MANAGER;
+
+    multipop(R1,R2,R3);
+
+endif;
+
+if (function_num == EXIT_PROCESS) then
+    multipush(R1,R2,R3);
+
+    R1 = FREE_PAGE_TABLE;
+    call PROCESS_MANAGER;
+
+    R1 = FREE_USER_AREA_PAGE;
+    call PROCESS_MANAGER;
+
+    multipop(R1,R2,R3);
+
+    [PROCESS_TABLE + 16*PID + 4] = TERMINATED;
+    
+endif;
+
+if (function_num == FREE_PAGE_TABLE) then
+
+    iter = 0;
+
+    // Release the pages one by one
+    while (iter < PTLR) do
+        if ([PTBR + 2*iter] != -1) then
+            multipush(R1,R2,R3,R4);
+
+            R1 = RELEASE_PAGE;
+            R2 = [PTBR + 2*iter];
+            call MEMORY_MANAGER;
+
+            multipop(R1,R2,R3,R4);
+
+            [PTBR + 2*iter] = -1;
+            [PTBR + 2*iter + 1] = "0000";
+        endif;
+        iter = iter+1;
+    endwhile;
+
+    // check heap and stack entries in disk map table
+    if ([DISK_MAP_TABLE + PID*10 + 2] != -1) then
+        multipush(R1,R2,R3,R4);
+        R1 = RELEASE_BLOCK;
+        R3 = PID;
+        R2 = [DISK_MAP_TABLE + PID*10 + 2];  // PID is R2 so be careful of modifications
+        call MEMORY_MANAGER;
+        multipop(R1,R2,R3,R4);
+    endif;
+
+    if ([DISK_MAP_TABLE + PID*10 + 3] != -1) then
+        multipush(R1,R2,R3,R4);
+        R1 = RELEASE_BLOCK;
+        R3 = PID;
+        R2 = [DISK_MAP_TABLE + PID*10 + 3];  // PID is R2 so be careful of modifications
+        call MEMORY_MANAGER;
+        multipop(R1,R2,R3,R4);
+    endif;
+
+    if ([DISK_MAP_TABLE + PID*10 + 8] != -1) then
+        multipush(R1,R2,R3,R4);
+        R1 = RELEASE_BLOCK;
+        R3 = PID;
+        R2 = [DISK_MAP_TABLE + PID*10 + 8];  // PID is R2 so be careful of modifications
+        call MEMORY_MANAGER;
+        multipop(R1,R2,R3,R4);
+    endif;
+
+    if ([DISK_MAP_TABLE + PID*10 + 9] != -1) then
+        multipush(R1,R2,R3,R4);
+        R1 = RELEASE_BLOCK;
+        R3 = PID;
+        R2 = [DISK_MAP_TABLE + PID*10 + 9];  // PID is R2 so be careful of modifications
+        call MEMORY_MANAGER;
+        multipop(R1,R2,R3,R4);
+    endif;
+
+    iter = 0;
+    while (iter < 10) do
+        [DISK_MAP_TABLE + PID*10 + iter] = -1;
+        iter = iter+1;
+    endwhile;
+endif;
+
+
+return;

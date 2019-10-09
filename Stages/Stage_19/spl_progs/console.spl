@@ -1,0 +1,31 @@
+//_________________________________***_Console_Interrupt_Handler_***_________________________________//
+
+// Save UPTR
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+
+// Switch to kernel stack
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
+
+backup;
+
+alias reqPID R0;
+reqPID = [TERMINAL_STATUS_TABLE + 1];
+
+alias process_table_entry R1;
+process_table_entry = PROCESS_TABLE + 16 * reqPID;
+
+// Copy data in port to i/p buffer of process
+[process_table_entry + 8] = P0;
+
+R1 = RELEASE_TERMINAL;
+R2 = reqPID;
+
+call RESOURCE_MANAGER;
+
+restore;
+
+// Restore user SP
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+
+
+ireturn;

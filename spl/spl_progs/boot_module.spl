@@ -1,3 +1,6 @@
+// Disk Free List
+loadi(61, 2);
+
 // Init
 loadi(65, 7);
 loadi(66, 8);
@@ -61,7 +64,6 @@ loadi (60, 4);
 // Initialize DISK_STATUS_TABLE
 [DISK_STATUS_TABLE + 0] = 0;
 
-
 // Initialize MEMORY_FREE_LIST
 alias iter R1;
 iter = 0;
@@ -118,6 +120,11 @@ PTLR = 10;
 [PTBR+18] = 77;
 [PTBR+19] = "0110";
 //<----------------------------------------->//
+
+//<----------- Disk Map table --------------->//
+[DISK_MAP_TABLE + 10 + 4] = 65;
+[DISK_MAP_TABLE + 10 + 5] = 66;
+//<------------------------------------------>//
 
 //<----------- Process table --------------->//
 // PID

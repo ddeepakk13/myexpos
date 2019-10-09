@@ -1,0 +1,101 @@
+
+// Save BP for good measure as applications programs don't do it before calling scheduler
+multipush(BP);
+
+alias currentPID R0;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+
+alias process_table_entry R1;
+process_table_entry = PROCESS_TABLE + currentPID * 16;
+
+//<-------- Save KPTR, PTBR, PTLR of running process ---------->//
+[process_table_entry + 12] = SP % 512;
+[process_table_entry + 14] = PTBR;
+[process_table_entry + 15] = PTLR;
+//<------------------------------------------------------------>//
+
+alias counter R2;
+counter = 1;
+
+alias newPID R3;
+alias new_process_table R4;
+alias state R5;
+
+//<--------------- Select new process to be scheduled -------------------->//
+// Iterate through the processes and choose one which is READY or CREATED
+// Note: Total size alloted for process table is 256 words
+// This could be implemented in a other ways also; here I'm using mod 256 addition
+
+
+while(counter <= 16) do
+
+    new_process_table = PROCESS_TABLE + (process_table_entry + 16*counter) % 256;
+
+    // Skip over Idle
+    if (new_process_table == PROCESS_TABLE) then
+        counter = counter + 1;
+        continue;
+    endif;
+
+    // Decide whether the process is viable to be switched into
+    state = [new_process_table + 4];
+    if ((state == READY) || (state == CREATED)) then
+        newPID = [new_process_table + 1];
+        break;
+    endif;
+
+    counter = counter + 1;
+
+endwhile;
+
+
+
+
+// If no process found viable, schedule Idle 
+if (counter == 17) then
+    new_process_table = PROCESS_TABLE;
+    newPID = 0;
+endif;
+
+
+//<----------------------------------------------------------------------->//
+
+
+
+//<--------- Restore SP, PTBR, PTLR of the newly scheduled process ---------->//
+SP =  [new_process_table + 11] * 512 + [new_process_table + 12];
+PTBR = [new_process_table + 14];
+PTLR = [new_process_table + 15];
+//<-------------------------------------------------------------------------->//
+
+//<---------- Set SYSTEM_STATUS_TABLE according to new process ------------>//
+[SYSTEM_STATUS_TABLE + 1] = newPID;
+//<------------------------------------------------------------------------>//
+
+//<------------------------------- Transfer of control to processs --------------------------------->//
+//<------ If the process has never been scheduled before -------->//
+
+// Then, the the entry point lies at user stack top
+// and there's nothing on kernel stack. So, transfer control
+// directly to address at top of user stack.
+
+if ([new_process_table + 4] == CREATED) then
+    SP = [new_process_table + 13];
+    [new_process_table + 4] = RUNNING;
+    [new_process_table + 9] = 0;            // Initialize the new process' mode flag
+
+    ireturn;
+endif;
+//<-------------------------------------------------------------->//
+
+// Else, transfer control back to top of kernel stack
+// which will redirect back to whatever was the kernel 
+// routine that called the scheduler
+
+
+[new_process_table + 4] = RUNNING;
+multipop(BP);
+
+
+return;
+//<------------------------------------------------------------------------------------------------->//

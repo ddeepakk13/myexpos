@@ -17,6 +17,7 @@ alias codeSize R5;
 //____________________________//
 
 
+
 // Set mode flag //
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = INT_EXEC;
 
@@ -91,7 +92,8 @@ SP = [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 11]*512 - 1;
 // Set inode index of process
 [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 7] = inode_index;
 
-// Set the library page entries in the page table.
+//--------------------------------------------------------------------------------------------------------//
+// Page table setup
 PTBR = PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1] * 20;
 PTLR = 10;
 
@@ -102,29 +104,28 @@ PTLR = 10;
 [PTBR+3] = "0100";
 
 
-// Invoke the Get Free Page function to allocate 2 stack and 2 heap pages.
+// Invoke the Get Free Page function to allocate 2 stack pages.
 
 multipush(R0,R1,R2,R3,R4,R6);
 
-// Heap
-R1 = GET_FREE_PAGE;
-call MEMORY_MANAGER;
-[PTBR+4] = R0;
-[PTBR+5] = "0110";
-
-R1 = GET_FREE_PAGE;
-call MEMORY_MANAGER;
-[PTBR+6] = R0;
-[PTBR+7] = "0110";
+// Invalidate Heap entries
+[PTBR+4] = -1;
+[PTBR+5] = "0000";
+[PTBR+6] = -1;
+[PTBR+7] = "0000";
 
 // Stack
 R1 = GET_FREE_PAGE;
+//  //  //  //  //  //
 call MEMORY_MANAGER;
+//  //  //  //  //  //
 [PTBR+16] = R0;
 [PTBR+17] = "0110";
 
 R1 = GET_FREE_PAGE;
+//  //  //  //  //  //
 call MEMORY_MANAGER;
+//  //  //  //  //  //
 [PTBR+18] = R0;
 [PTBR+19] = "0110";
 
@@ -133,40 +134,42 @@ multipop(R0,R1,R2,R3,R4,R6);
 // Find out the number of blocks occupied by the file from inode table
 codeSize = ([INODE_TABLE + 16 * inode_index + 2] + 511) / 512;
 
-// Allocate same number of code pages by invoking the Get Free Page function and 
-// update the page table entries.
-iter = 0;
-while(iter < codeSize) do
-    //Code
-    multipush(R0,R1,R2,R3,R4,R5,R6);
-    R1 = GET_FREE_PAGE;
-    call MEMORY_MANAGER;
-    [PTBR + 8 + iter * 2] = R0;
-    [PTBR + 8 + iter*2 + 1] = "0100";
-    multipop(R0,R1,R2,R3,R4,R5,R6);
-    iter = iter + 1;
-endwhile;
+// Allocate the first code page only
+multipush(R0,R1,R2,R3,R4,R5,R6);
 
+R1 = GET_CODE_PAGE;
+R2 = [INODE_TABLE + 16 * inode_index + 8];
+//  //  //  //  //  //
+call MEMORY_MANAGER;
+//  //  //  //  //  //
+
+[PTBR + 8] = R0;
+[PTBR + 8 + 1] = "0100";
+
+multipop(R0,R1,R2,R3,R4,R5,R6);
+
+// Invalidate rest of the code blocks
+iter = 1;
 while (iter < 4) do
     [PTBR + 8 + iter * 2] = -1;
     [PTBR + 8 + iter * 2 + 1] = "0000";
     iter = iter + 1;
 endwhile;
+//--------------------------------------------------------------------------------------------------------//
 
-// Load the code blocks from the disk to the memory pages using loadi statement.
+
+//--------------------------------------------------------------------------------------------------------//
+// Initialize the per-process disk map table (just fill up for the code blocks)
 iter = 0;
-while (iter < codeSize) do
-    multipush(R0,R1,R2,R3,R4,R5,R6);
-    R1 = DISK_LOAD;
-    R2 = [SYSTEM_STATUS_TABLE + 1];
-    R3 = [PTBR + 8 + iter * 2];
-    R4 = [INODE_TABLE + 16 * inode_index + 8 + iter];
-    //  //  //  //  //  //
-    call DEVICE_MANAGER;
-    //  //  //  //  //  //
-    multipop(R0,R1,R2,R3,R4,R5,R6);
-    iter = iter + 1;
+while (iter < 10) do
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + iter] = -1; 
+    iter = iter+1;
 endwhile;
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 4] = [INODE_TABLE + 16 * inode_index + 8];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 5] = [INODE_TABLE + 16 * inode_index + 9];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 6] = [INODE_TABLE + 16 * inode_index + 10];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 7] = [INODE_TABLE + 16 * inode_index + 11];
+//--------------------------------------------------------------------------------------------------------//
 
 // per-process resource table should be initialized in this user area page. Since the 
 // newly created process has not opened any files or semaphores, each entry in the 
@@ -185,5 +188,6 @@ SP = 8 * 512;
 
 // Reset mode flag
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+
 
 ireturn;

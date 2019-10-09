@@ -12,14 +12,27 @@
 
 //_______ SPL Variables ______//
 alias function_num R1;
-alias curr_PID R3;
+alias arg1 R2;
+alias arg2 R3;
 alias iter R4;
 alias page_number R5;
+alias PID R6;
+alias jter R7;
+alias free_page R8;
 //____________________________//
 
 
-curr_PID = [SYSTEM_STATUS_TABLE + 1];
+PID = [SYSTEM_STATUS_TABLE + 1];
 
+//--------------------------------------------- RELEASE_BLOCK -------------------------------------------------------------------------//
+if (function_num == RELEASE_BLOCK) then
+    // Decrement disk free list
+    [DISK_FREE_LIST + arg1] = [DISK_FREE_LIST + arg1] - 1;
+    return;
+endif;
+//------------------------------------------------------------------------------------------------------------------------------------//
+
+//--------------------------------------------- GET_FREE_PAGE -------------------------------------------------------------------------//
 if (function_num == GET_FREE_PAGE) then
     // Increment WAIT_MEM_COUNT
     [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;
@@ -28,10 +41,12 @@ if (function_num == GET_FREE_PAGE) then
     while ([SYSTEM_STATUS_TABLE + 2] == 0) do
 
         // set state as waiting for memory
-        [PROCESS_TABLE + 16*curr_PID + 4] = WAIT_MEM;
-        multipush(R1,R3,R4);
+        [PROCESS_TABLE + 16*PID + 4] = WAIT_MEM;
+        multipush(R1,R3,R4,R6);
+        //  //  //  //  
         call SCHEDULER;
-        multipop(R1,R3,R4);
+        //  //  //  //  
+        multipop(R1,R3,R4,R6);
 
     endwhile;
 
@@ -56,7 +71,10 @@ if (function_num == GET_FREE_PAGE) then
     endwhile;
     
 endif;
+//--------------------------------------------------------------------------------------------------------------------------------------//
 
+
+//------------------------------------------------ RELEASE_PAGE ----------------------------------------------------------------------//
 if (function_num == RELEASE_PAGE) then
 
     // Page to be released is in R2
@@ -80,3 +98,67 @@ if (function_num == RELEASE_PAGE) then
     endif;
     return;
 endif;
+//-----------------------------------------------------------------------------------------------------------------------------------//
+
+
+//------------------------------------------------------ GET_CODE_PAGE ----------------------------------------------------------------//
+// arg1 : block number
+if (function_num == GET_CODE_PAGE) then
+
+    // Try to find the code page by checking all the disk map entries
+    iter = 0;
+    
+    while (iter < MAX_PROC_NUM) do
+        if (iter != PID) then
+            if ([PROCESS_TABLE + iter*16 + 4] != TERMINATED) then
+                jter = 2;
+
+                // size of disk map table is 10 words
+                while (jter < 10) do
+
+                    if (arg1 == [DISK_MAP_TABLE + 10*iter + jter]) then
+                        // Just because disk map table has an entry may not mean it is loaded already
+                        // check page table to ensure it is loaded
+
+                        // store page number of code copy found
+                        R0 = [PTBR + 20*iter + 2*jter];
+                        if (R0 != -1) then  // the page is loaded
+                            // Increment MEMORY_FREE_LIST
+                            [MEMORY_FREE_LIST + R0] = [MEMORY_FREE_LIST + R0] + 1;
+                            return;
+                            
+                        endif;
+                    endif;
+                    jter = jter+1;
+                endwhile;
+            endif;
+        endif;
+        iter = iter+1;
+    endwhile;
+
+    // If no pre-loaded code page was found load a new one yourself
+
+    multipush(R1,R2,R3,R4,R5,R6,R7);
+    R1 = GET_FREE_PAGE;
+    //  //  //  //  //  //
+    call MEMORY_MANAGER;
+    //  //  //  //  //  //
+    multipop(R1,R2,R3,R4,R5,R6,R7);
+    free_page = R0;
+
+
+    multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+    R1 = DISK_LOAD;
+    R4 = R2;    // arg1 (block number)
+    R2 = PID;
+    R3 = free_page;
+    //  //  //  //  //
+    call DEVICE_MANAGER;
+    //  //  //  //  //
+    multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+    R0 = free_page;
+    
+    return;
+
+endif;
+//------------------------------------------------------------------------------------------------------------------------------------//
