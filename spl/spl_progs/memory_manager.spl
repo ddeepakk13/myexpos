@@ -111,10 +111,10 @@ if (function_num == GET_CODE_PAGE) then
     while (iter < MAX_PROC_NUM) do
         if (iter != PID) then
             if ([PROCESS_TABLE + iter*16 + 4] != TERMINATED) then
-                jter = 2;
+                jter = 4;
 
                 // size of disk map table is 10 words
-                while (jter < 10) do
+                while (jter <= 7) do
 
                     if (arg1 == [DISK_MAP_TABLE + 10*iter + jter]) then
                         // Just because disk map table has an entry may not mean it is loaded already
@@ -122,7 +122,7 @@ if (function_num == GET_CODE_PAGE) then
 
                         // store page number of code copy found
                         R0 = [PTBR + 20*iter + 2*jter];
-                        if (R0 != -1) then  // the page is loaded
+                        if ([R0 + 1] != "0000") then  // the page is loaded
                             // Increment MEMORY_FREE_LIST
                             [MEMORY_FREE_LIST + R0] = [MEMORY_FREE_LIST + R0] + 1;
                             return;

@@ -1,0 +1,113 @@
+//___________________________________________________***_INT_11_***___________________________________________________//
+// 
+//
+// INT_GETPID   : None  : current PID - Success
+// INT_GETPPID  : None  : parent PID - Success
+// INT_WAIT	    : PID   : 0 - Success , -1 - Given PID is invalid or it is PID of invoking process
+// INT_SIGNAL   : None  : 0 - Success
+
+//_______ SPL Variables ______//
+alias sys_call_num R5;
+alias userSP R6;
+alias PID R7;
+alias argPID R8;
+alias i R9;
+//____________________________//
+
+PID = [SYSTEM_STATUS_TABLE + 1];
+
+// Store SP to a register //
+userSP = SP;
+
+// Save user SP to process table //
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13] = userSP;
+
+// Switch to kernel stack //
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 11] * 512 - 1;
+
+// Extract system call number
+sys_call_num = [([PTBR + 2 * ((userSP - 5) / 512)] * 512)  + ((userSP - 5) % 512)];
+
+// set mode flag
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = sys_call_num;
+
+
+//---------------------------------------------------------------------------------------//
+if (sys_call_num == INT_WAIT) then
+    // Extract argPID
+    argPID = [([PTBR + 2 * ((userSP - 4) / 512)] * 512)  + ((userSP - 4) % 512)];
+
+    // Check if PID is within range
+    if (argPID <= 1 || argPID >= MAX_PROC_NUM) then
+        [([PTBR + 2 * ((userSP - 1) / 512)] * 512)  + ((userSP - 1) % 512)] = -1;
+        // reset mode flag //
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+        // Switch back to user stack //
+        SP = userSP;
+        ireturn;
+    endif;
+    // Check if process is valid
+    if (argPID == PID || [PROCESS_TABLE + argPID*16 + 4] == TERMINATED) then
+        [([PTBR + 2 * ((userSP - 1) / 512)] * 512)  + ((userSP - 1) % 512)] = -1;
+        // reset mode flag //
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+        // Switch back to user stack //
+        SP = userSP;
+        ireturn;
+    endif;
+
+    //  If all is well change the state of the process
+    [PROCESS_TABLE + PID * 16 + 4] = WAIT_PROCESS;
+    [PROCESS_TABLE + PID * 16 + 5] = argPID;
+
+    multipush(R5,R6,R7,R8);
+    //  //  //  //  //
+    call SCHEDULER;
+    //  //  //  //  //
+    multipop(R5,R6,R7,R8);
+
+    // The following code is run when the process is awakened from wait
+
+    // Store return value 0
+    [([PTBR + 2 * ((userSP - 1) / 512)] * 512)  + ((userSP - 1) % 512)] = 0;
+    
+endif;
+//---------------------------------------------------------------------------------------//
+
+//---------------------------------------------------------------------------------------//
+if (sys_call_num == INT_SIGNAL) then
+    // Loop thhrough all processes and change state of processes waiting for current process
+    i = 1;
+    while(i < MAX_PROC_NUM) do
+        if ([PROCESS_TABLE + i * 16 + 4] == WAIT_PROCESS && [PROCESS_TABLE + i * 16 + 5] == PID) then
+            [PROCESS_TABLE + i * 16 + 4] = READY;
+        endif;
+        i = i+1;
+    endwhile;
+
+    // Store return value 0
+    [([PTBR + 2 * ((userSP - 1) / 512)] * 512)  + ((userSP - 1) % 512)] = 0;
+endif;
+//---------------------------------------------------------------------------------------//
+
+//---------------------------------------------------------------------------------------//
+if (sys_call_num == INT_GETPID) then
+    // Store return value 
+    [([PTBR + 2 * ((userSP - 1) / 512)] * 512)  + ((userSP - 1) % 512)] = PID;
+endif;
+//---------------------------------------------------------------------------------------//
+
+//---------------------------------------------------------------------------------------//
+if (sys_call_num == INT_GETPPID) then
+    // Store return value 
+    [([PTBR + 2 * ((userSP - 1) / 512)] * 512)  + ((userSP - 1) % 512)] = [PROCESS_TABLE + PID * 16 + 2];
+endif;
+//---------------------------------------------------------------------------------------//
+
+// reset mode flag //
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+
+// Switch back to user stack //
+SP = userSP;
+
+ireturn;

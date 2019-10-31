@@ -1,17 +1,11 @@
-[PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 4] = TERMINATED;
+// Exit system call first sets the MODE FLAG to the system call number and switches to the kernal stack.
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 10;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 11] * 512 - 1;
 
-alias iter R0;
 
-iter = 1;
+// It then invokes the Exit Process function present in the process manager module.
+R1 = EXIT_PROCESS;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+call PROCESS_MANAGER;
 
-alias state R1;
-
-while (iter < MAX_PROC_NUM) do
-    state = [PROCESS_TABLE + 16*iter + 4];
-    if (state != TERMINATED) then
-        call SCHEDULER;
-    endif;
-    iter = iter + 1;
-endwhile;
-
-halt;
+call SCHEDULER;

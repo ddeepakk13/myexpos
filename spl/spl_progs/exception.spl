@@ -14,6 +14,7 @@ backup;
 // Push EIP onto stack
 multipush(EIP);
 
+
 //  If the cause of the exception is other than page fault (EC is not equal to 0) or if the user stack is full
 if (EC != 0 || [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13] == PTLR * 512 - 1) then
 	if ([PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13] == PTLR * 512 - 1) then
@@ -28,6 +29,10 @@ if (EC != 0 || [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13] == PTLR * 5
 	if (EC == 3) then
 		print "Arithmetic";
 	endif;
+
+	//	//	//
+	breakpoint;
+	//	//	//
 
 	// Then invoke the Exit Process function to halt the process and invoke the scheduler. 
 	R1 = EXIT_PROCESS;

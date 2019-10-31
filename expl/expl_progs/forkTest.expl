@@ -1,0 +1,25 @@
+decl 
+   int t;
+   str f1, f2;
+enddecl
+
+int main()
+{
+    begin
+        write("File1");
+        read(f1);
+        write("File2");
+        read(f2);
+        t = exposcall("Fork");
+        if (t < 0) then
+            write("Fork fail");
+        else
+            if (t == 0) then
+                t = exposcall("Exec",f2);
+            else
+                t = exposcall("Exec",f1);
+            endif;
+        endif;
+        return 0;
+    end
+}

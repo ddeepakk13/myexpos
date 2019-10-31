@@ -60,6 +60,11 @@ alias iter R1;
 iter = 0;
 
 while (iter < NUM_MEM_PAGES) do
+    if (iter == 63 || iter == 64) then
+        [MEMORY_FREE_LIST + iter] = 2;
+        iter = iter + 1;
+        continue;
+    endif;
     if (iter >= 83 && iter <= 127) then
         [MEMORY_FREE_LIST + iter] = 0;
     else

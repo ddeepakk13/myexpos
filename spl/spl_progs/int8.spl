@@ -1,0 +1,216 @@
+//___________________________________________________***_INT_8_Fork_system_call_***___________________________________________________//
+
+// Arguments: None
+
+//__________*** Return Value ***__________//
+//  PID (Integer) : Success, the return value to the parent is the process descriptor(PID) of the child process
+//  0             : Success, the return value to the child
+// -1             : Failure, Number of processes has reached the maximum limit. Returns to the parent
+//________________________________________//
+
+//_______ SPL Variables ______//
+alias child_ptbr R3;
+alias userSP R5;
+alias PID R6;
+alias child_PID R7;
+alias child_stack1 R8;
+alias child_stack2 R9;
+alias child_uapn R10;
+alias parent_pt R11;
+alias child_pt R12;
+alias i R13;
+alias j R14;
+//____________________________//
+
+PID = [SYSTEM_STATUS_TABLE + 1];
+
+
+//-------------------------------------------------------------------//
+// Set mode flag //
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = INT_FORK;
+
+// Store SP to a register //
+userSP = SP;
+
+// Save user SP to process table //
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13] = userSP;
+
+// Switch to kernel stack //
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 11] * 512 - 1;
+//-------------------------------------------------------------------//
+
+
+
+multipush(R5,R6);
+R1 = GET_PCB_ENTRY;
+//  //  //  //  //  //
+call PROCESS_MANAGER;
+//  //  //  //  //  //
+multipop(R5,R6);
+child_PID = R0;
+
+// Return -1 for failure to find free page table
+if (child_PID == -1) then
+    [([PTBR + 2 * ((userSP - 1) / 512)] * 512) + ((userSP - 1) % 512)] = -1;
+
+    // Switch back to user stack //
+    SP = userSP;
+
+    // Reset mode flag //
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+
+    // Return to user program
+    ireturn;
+endif;
+
+// Check if parent has heap pages
+// If not allocate them
+if ([PTBR + 5] == "0000") then
+    multipush(R5,R6,R7);
+    R1 = GET_FREE_PAGE;
+    //  //  //  //  //  //
+    call MEMORY_MANAGER;
+    //  //  //  //  //  //
+    multipop(R5,R6,R7);
+
+    [PTBR + 4] = R0;
+    [PTBR + 5] = "0110";
+
+    multipush(R5,R6,R7);
+    R1 = GET_FREE_PAGE;
+    //  //  //  //  //  //
+    call MEMORY_MANAGER;
+    //  //  //  //  //  //
+    multipop(R5,R6,R7);
+
+    [PTBR + 6] = R0;
+    [PTBR + 7] = "0110";
+
+endif;
+
+// Get two stack pages and a user area page for child process
+
+multipush(R5,R6,R7,R8,R9,R10);
+R1 = GET_FREE_PAGE;
+//  //  //  //  //  //
+call MEMORY_MANAGER;
+//  //  //  //  //  //
+multipop(R5,R6,R7,R8,R9,R10);
+child_stack1 = R0;
+
+multipush(R5,R6,R7,R8,R9,R10);
+R1 = GET_FREE_PAGE;
+//  //  //  //  //  //
+call MEMORY_MANAGER;
+//  //  //  //  //  //
+multipop(R5,R6,R7,R8,R9,R10);
+child_stack2 = R0;
+
+multipush(R5,R6,R7,R8,R9,R10);
+R1 = GET_FREE_PAGE;
+//  //  //  //  //  //
+call MEMORY_MANAGER;
+//  //  //  //  //  //
+multipop(R5,R6,R7,R8,R9,R10);
+child_uapn = R0;
+
+// Initialize child process table
+parent_pt = PROCESS_TABLE + PID * 16;
+child_pt = PROCESS_TABLE + child_PID * 16;
+
+// Copy userID, swap flag, user area swap status, inode index, uptr
+[child_pt + 3] = [parent_pt + 3];
+[child_pt + 6] = [parent_pt + 6];
+[child_pt + 10] = [parent_pt + 10];
+[child_pt + 7] = [parent_pt + 7];
+[child_pt + 13] = [parent_pt + 13];
+
+// Set the MODE FLAG, KPTR and TICK fields of the child process to 0
+[child_pt + 9] = 0;
+[child_pt + 12] = 0;
+[child_pt + 0] = 0;
+
+// Set PPID
+[child_pt + 2] = PID;
+
+// set STATE
+[child_pt + 4] = CREATED;
+
+// uapn
+[child_pt + 11] = child_uapn;
+
+
+// copy per-process resource table to child
+R4 = [parent_pt + 11];
+i = R4 * 512 + 512 - 16;
+R4 = [child_pt + 11];
+j = R4 * 512 + 512 - 16;
+while (j < (R4 * 512 + 512)) do
+    [j] = [i];
+    i = i+1;
+    j = j+1;
+endwhile;
+
+// Copy per-process disk map table
+i = 0;
+while (i < 10) do
+    [DISK_MAP_TABLE + child_PID * 10 + i] = [DISK_MAP_TABLE + PID * 10 + i];
+    i = i+1;
+endwhile;
+
+//  ------------ Setup child page table --------------- //
+child_ptbr = [child_pt + 14];
+// copy heap, code and library pages
+i = 0;
+while (i < 4) do
+    // Physical page
+    [child_ptbr + 2*i] = [PTBR + 2*i];
+    // Aux info
+    [child_ptbr + 2*i + 1] = [PTBR + 2*i + 1];
+    // Increment mem free list
+    [MEMORY_FREE_LIST + [child_ptbr + 2*i]] = [MEMORY_FREE_LIST + [child_ptbr + 2*i]] + 1;
+    i = i+1;
+endwhile;
+
+// code pages
+i = 8;
+while (i < 16) do
+    [child_ptbr + i] = [PTBR + i];
+    [child_ptbr + i + 1] = [PTBR + i + 1];
+    if ([child_ptbr + i] != -1) then
+        [MEMORY_FREE_LIST + [child_ptbr + i]] = [MEMORY_FREE_LIST + [child_ptbr + i]] + 1;
+    endif;
+    i = i + 2;
+endwhile;
+
+
+// Setup stack
+[child_ptbr + 16] = child_stack1;
+[child_ptbr + 17] = [PTBR + 17];
+[child_ptbr + 18] = child_stack2;
+[child_ptbr + 19] = [PTBR + 19];
+
+
+// copy stack pages word to word
+i = 0;
+while (i < 512) do
+    [child_stack1*512 + i] = [[PTBR + 16]*512 + i];
+    [child_stack2*512 + i] = [[PTBR + 18]*512 + i];
+    i = i+1;
+endwhile;
+
+// Store the value in the BP register on top of the kernel stack of child process
+[child_uapn * 512] = BP;
+
+// Set up return values in the user stacks of the parent and the child processes.
+[[PTBR + 2 * ((userSP - 1) / 512)] * 512 + (userSP - 1) % 512] = child_PID;
+[[child_ptbr + 2 * ((userSP - 1) / 512)] * 512 + (userSP - 1) % 512] = 0;
+
+
+// reset mode flag //
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+
+// Switch back to user stack //
+SP = userSP;
+
+ireturn;

@@ -16,7 +16,27 @@ alias iter R4;
 //____________________________//
 
 
+if (function_num == GET_PCB_ENTRY) then
+    iter = 1;
+    // loop through to find a free page table
+    while (iter < MAX_PROC_NUM) do
+        if ([PROCESS_TABLE + iter*16 + 4] == TERMINATED) then
+            [PROCESS_TABLE + iter*16 + 1] = iter;                       //PID
+            [PROCESS_TABLE + iter*16 + 4] = ALLOCATED;                  //STATE
+            [PROCESS_TABLE + iter*16 + 14] = PAGE_TABLE_BASE + iter*20; //PTBR
+            [PROCESS_TABLE + iter*16 + 15] = 10;                        //PTLR
+            R0 = iter;
+            return;
+        endif;
+    iter = iter + 1;
+    endwhile;
 
+    // Return -1 if no page table is available
+    if (iter == MAX_PROC_NUM) then
+        R0 = -1;
+        return;
+    endif;
+endif;
 
 if (function_num == FREE_USER_AREA_PAGE) then
 
@@ -33,6 +53,26 @@ if (function_num == FREE_USER_AREA_PAGE) then
 endif;
 
 if (function_num == EXIT_PROCESS) then
+
+    // If current system call is not INT_EXEC
+    if ([PROCESS_TABLE + PID * 16 + 9] != INT_EXEC) then
+        iter = 1;
+
+        while (iter < MAX_PROC_NUM) do
+
+            // Wake up waiting processes
+            if ([PROCESS_TABLE + iter * 16 + 4] == WAIT_PROCESS && [PROCESS_TABLE + iter * 16 + 5] == PID) then
+                [PROCESS_TABLE + iter * 16 + 4] = READY;
+            endif;
+
+            // Set PPID for about to be orphan processes
+            if ([PROCESS_TABLE + iter * 16 + 2] == PID) then
+                [PROCESS_TABLE + iter * 16 + 2] = -1;
+            endif;
+            iter = iter + 1;
+        endwhile;
+    endif;
+
     multipush(R1,R2,R3);
 
     R1 = FREE_PAGE_TABLE;
